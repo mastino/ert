@@ -1,0 +1,4 @@
+*.exe
+*.pyc
+test_kern_files/
+
