@@ -72,6 +72,7 @@ LIKWID_MARKER_INIT;
   size_t mem_accesses_per_elem = 0;
   double** data;
   double ai = 0.0;
+  double gflops = 0.0;
 
   get_input(argc, argv, &input);
 
@@ -79,14 +80,19 @@ LIKWID_MARKER_INIT;
 
   wall_tot_start = wall_init_start = omp_get_wtime();
   data = (double **)aligned_alloc(64, input.num_thr*sizeof(double*));
+  for(size_t tid = 0; tid < input.num_thr; tid++)
+    data[tid] = (double *)aligned_alloc(64, input.nsize*sizeof(double));
   if (input.print_info) printf("Running benchmark.......\n"); fflush(stdout);
   wall_comp_start = wall_init_end = omp_get_wtime();
 
   #pragma omp parallel
   {
+
+#ifdef USE_CALI
+CALI_MARK_BEGIN("kernel");
+#endif
     
     size_t tid = omp_get_thread_num();
-    data[tid] = (double *)aligned_alloc(64, input.nsize*sizeof(double));
   
     kernel(data[tid], 
            input.nsize, 
@@ -95,6 +101,9 @@ LIKWID_MARKER_INIT;
            &bytes_per_elem, 
            &mem_accesses_per_elem);
     
+#ifdef USE_CALI
+CALI_MARK_END("kernel");
+#endif
   }
   wall_free_start = wall_comp_end = omp_get_wtime();
 
@@ -102,6 +111,7 @@ LIKWID_MARKER_INIT;
   wall_tot_end = wall_free_end = omp_get_wtime();
 
   ai = ((double)flops)/((double)bytes_per_elem*(double)mem_accesses_per_elem);
+  gflops = (flops*input.num_thr*input.nsize*input.nreps)/(wall_comp_end - wall_comp_start);
 
   if (input.print_info) {
 
@@ -115,10 +125,10 @@ LIKWID_MARKER_INIT;
     printf("init time: %fs\n", (wall_init_end - wall_init_start));
     printf("free time: %fs\n", (wall_free_end - wall_free_start));
     printf("\ncomputation time: %fs\n", (wall_comp_end - wall_comp_start));
-    printf("computation time: %e GFLOP/s\n", (flops*input.num_thr*input.nsize*input.nreps)/(wall_comp_end - wall_comp_start));
+    printf("computation rate: %e GFLOP/s\n", gflops);
 
   } else {
-    printf("%e\n", (flops*input.num_thr*input.nsize*input.nreps)/(wall_comp_end - wall_comp_start));
+    printf("%e\n", gflops);
   }
 
 #ifdef USE_LIKWID

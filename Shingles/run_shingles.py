@@ -88,9 +88,9 @@ if __name__ == '__main__':
 	# print("EM y-intercept = %f" % (args.peak - args.em_slope*args.em_corner) )
 	# print("")
 
-
+	run = False
 	num_shingles = 6
-	AI_li = [0.0625, 0.125, 0.5, 1.0, 6.25, 12.5]
+	AI_li = [0.0625, 0.125, 0.5, 1.0, 6.25, 12.5, 25.0]
 	bytes_per_elem = 16 # DP load and DP store
 	data_start_size = 10000
 
@@ -101,7 +101,7 @@ if __name__ == '__main__':
 	for ai in AI_li:
 		flops = int(ai*bytes_per_elem)
 		# print kern_dir+(kern_pattern%flops)
-		print_shingles_h(kern_dir+(kern_pattern%flops), flops-1) # flops -1 cause there is theextra subtraction at the end
+		print_shingles_h(kern_dir+(kern_pattern%flops), flops)
 
 		# make = cc + a64_opt + c_files + (h_file_opt%(h_dir+(h_pattern%flops))) + options
 		make = cc + opt + c_files + kern_dir+(kern_pattern%flops) + " " + options + "-o " + (exe_pattern%flops)
@@ -111,13 +111,16 @@ if __name__ == '__main__':
 			print output
 			quit()
 
-
-		for s in [1024000, 2048000, 4096000, 8192000, 16384000, 32768000, 65536000, 131072000]:
-			cmd = exe_cmd%(flops,s,56)
-			output=check_output(cmd, shell=True)
-			if not output.strip() is "":
-				print cmd
-				print output
+		if run:
+			nthrs = 112
+			nreps = 10000
+			for s in [4000, 16000, 64000, 256000, 512000, 1024000, 2048000]:
+			# for s in [1024000, 2048000, 4096000, 8192000, 16384000, 32768000, 65536000, 131072000]:
+				cmd = exe_cmd%(flops,s,nthrs,nreps)
+				output=check_output(cmd, shell=True)
+				if not output.strip() is "":
+					print cmd
+					print output
 
 
 

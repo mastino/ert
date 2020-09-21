@@ -50,7 +50,7 @@ void kernel(double *__restrict__ data,
 
 variable_defs = \
 '''
-  *flops = %d + 1;
+  *flops = %d;
   *bytes_per_elem = sizeof(*data);
   *mem_accesses_per_elem = 2; // theoretically one load and one store
 
@@ -96,20 +96,28 @@ loops_close = \
 
 #### compile line options
 
-cc = "gcc -g -std=c11 "
+cc = "icc -g -std=c11 "
+# cc = "gcc -g -std=c11 "
 # a64_opt = "-O3 -march=armv8.2-a+sve "
 a64_opt = "-O3 "
-sky_opt = "-O3 -march=skylake-avx512 "
+sky_opt = "-O3 -ipo -march=skylake-avx512 -qopt-zmm-usage=high -no-fma "
+# sky_opt = "-O3 -march=skylake-avx512 "
+
+cali_lib =  "-I${CALIPER_DIR}/include "
+cali_lib += "-DUSE_CALI "
+cali_lib += "-L${CALIPER_DIR}/lib64 "
+cali_lib += "-lcaliper "
 
 opt = " "
 opt += sky_opt
+opt += cali_lib
 
 c_files = "shingles.c "
 options = "-fopenmp "
 
 h_file_opt = "-DKERNEL=\"#include %s\" "
 
-exe_cmd = "./shingles_flops_%d.exe -s %d -t %d -r 100 -q"
+exe_cmd = "OMP_PLACES=cores OMP_PROC_BIND=spread ./shingles_flops_%d.exe -s %d -t %d -r %d -q"
 
 
 
