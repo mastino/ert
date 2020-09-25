@@ -60,9 +60,8 @@ variable_defs = \
   __alignx(64, data);
 #endif
 
-  double alpha, const_beta;
-  alpha      = 2.0;
-  const_beta = 1.0;
+  double alpha = 0.001;
+  const double const_beta = 0.05;
 
 '''
 
@@ -78,13 +77,13 @@ loop_start = \
 
 '''
 
-kernel_1 = '      beta = data[i] + alpha;\n'
-kernel_2 = '      beta = beta * data[i] + alpha;\n'
+kernel_1 = '      beta = data[i] + beta;\n'
+kernel_2 = '      beta = beta + data[i] * alpha;\n'
 
 
 loops_close = \
 '''
-      data[i] = -beta;
+      data[i] = beta;
     }
   }
 }
@@ -100,6 +99,7 @@ cc = "icc -g -std=c11 "
 # cc = "gcc -g -std=c11 "
 # a64_opt = "-O3 -march=armv8.2-a+sve "
 a64_opt = "-O3 "
+# sky_opt = "-O3 -ipo -march=skylake-avx512 -qopt-zmm-usage=high "
 sky_opt = "-O3 -ipo -march=skylake-avx512 -qopt-zmm-usage=high -no-fma "
 # sky_opt = "-O3 -march=skylake-avx512 "
 

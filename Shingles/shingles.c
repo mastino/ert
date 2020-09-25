@@ -68,6 +68,7 @@ LIKWID_MARKER_INIT;
   struct Inputs input;
   size_t ntrials = 1;
   size_t flops = 0;
+  size_t tot_flops = 0;
   size_t bytes_per_elem = 0;
   size_t mem_accesses_per_elem = 0;
   double** data;
@@ -80,8 +81,13 @@ LIKWID_MARKER_INIT;
 
   wall_tot_start = wall_init_start = omp_get_wtime();
   data = (double **)aligned_alloc(64, input.num_thr*sizeof(double*));
-  for(size_t tid = 0; tid < input.num_thr; tid++)
+  for(size_t tid = 0; tid < input.num_thr; tid++) {
     data[tid] = (double *)aligned_alloc(64, input.nsize*sizeof(double));
+    for(size_t j = 0; j < input.nsize; j++) {
+      data[tid][j] = 0.0001;
+    }
+  }
+
   if (input.print_info) printf("Running benchmark.......\n"); fflush(stdout);
   wall_comp_start = wall_init_end = omp_get_wtime();
 
@@ -111,21 +117,23 @@ CALI_MARK_END("kernel");
   wall_tot_end = wall_free_end = omp_get_wtime();
 
   ai = ((double)flops)/((double)bytes_per_elem*(double)mem_accesses_per_elem);
-  gflops = (flops*input.num_thr*input.nsize*input.nreps)/(wall_comp_end - wall_comp_start);
+  gflops = ((double)flops*(double)input.num_thr*(double)input.nsize*(double)input.nreps)/(wall_comp_end - wall_comp_start);
+  tot_flops = flops*input.nsize;//*input.nreps;
 
   if (input.print_info) {
 
     printf("\nRan new Shingle with \n\
       doubles per thr = %d \n\
-      flops           = %d \n\
+      flops per iter  = %d \n\
+      flops per thr   = %d \n\
       Arith Intensity = %f \n\
       rep count       = %d \n\
       thread count    = %d \n",
-      input.nsize, flops, ai, input.nreps, input.num_thr);
+      input.nsize, flops, tot_flops, ai, input.nreps, input.num_thr);
     printf("init time: %fs\n", (wall_init_end - wall_init_start));
     printf("free time: %fs\n", (wall_free_end - wall_free_start));
     printf("\ncomputation time: %fs\n", (wall_comp_end - wall_comp_start));
-    printf("computation rate: %e GFLOP/s\n", gflops);
+    printf("computation rate: %e FLOP/s\n", gflops);
 
   } else {
     printf("%e\n", gflops);

@@ -26,11 +26,11 @@ def print_shingles_h(filename, flops):
 	file.write(variable_defs%flops)
 	file.write(loop_start)
 
-	for i in range(0,int(floor(flops/2))):
-		file.write(kernel_2)
-
 	if (flops % 2) == 1:
 		file.write(kernel_1)
+		
+	for i in range(0,int(floor(flops/2))):
+		file.write(kernel_2)
 
 	file.write(loops_close)
 	
