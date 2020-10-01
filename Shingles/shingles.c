@@ -46,14 +46,6 @@ void get_input(int argc, char **argv, struct Inputs* input);
 // main function
 int main(int argc, char **argv) {
 
-#ifdef USE_CALI
-cali_id_t thread_attr = cali_create_attribute("thread_id", CALI_TYPE_INT, CALI_ATTR_ASVALUE | CALI_ATTR_SKIP_EVENTS);
-#pragma omp parallel
-{
-cali_set_int(thread_attr, omp_get_thread_num());
-}
-#endif
-
 #ifdef USE_LIKWID
 LIKWID_MARKER_INIT;
 #endif
@@ -78,6 +70,14 @@ LIKWID_MARKER_INIT;
   get_input(argc, argv, &input);
 
   omp_set_num_threads(input.num_thr);
+  
+#ifdef USE_CALI
+cali_id_t thread_attr = cali_create_attribute("thread_id", CALI_TYPE_INT, CALI_ATTR_ASVALUE | CALI_ATTR_SKIP_EVENTS);
+#pragma omp parallel
+{
+cali_set_int(thread_attr, omp_get_thread_num());
+}
+#endif
 
   wall_tot_start = wall_init_start = omp_get_wtime();
   data = (double **)aligned_alloc(64, input.num_thr*sizeof(double*));
