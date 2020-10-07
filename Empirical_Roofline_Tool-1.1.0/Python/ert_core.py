@@ -144,7 +144,7 @@ class ert_core:
 
     if "ERT_WSS_MULT" not in self.dict["CONFIG"]:
       self.dict["CONFIG"]["ERT_WSS_MULT"] = [1.1]
-
+    
     self.results_dir = self.dict["CONFIG"]["ERT_RESULTS"][0]
     made_results = make_dir_if_needed(self.results_dir,"results",False)
 
@@ -506,10 +506,10 @@ class ert_core:
       sys.stderr.write("Unable to produce a '%s' gnuplot file for %s\n" % (name,run_dir))
       return 1
 
-    command = "echo 'load \"%s/%s.gnu\"' | %s" % (run_dir,name,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
-    if execute_shell(command,self.options.verbose > 1) != 0:
-      sys.stderr.write("Unable to produce a '%s' for %s\n" % (name,run_dir))
-      return 1
+    #command = "echo 'load \"%s/%s.gnu\"' | %s" % (run_dir,name,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
+    #if execute_shell(command,self.options.verbose > 1) != 0:
+    #  sys.stderr.write("Unable to produce a '%s' for %s\n" % (name,run_dir))
+    #  return 1
 
     return 0
 
@@ -829,9 +829,9 @@ class ert_core:
         plotfile.close()
 
         command = "echo 'load \"%s\"' | %s" % (loadname,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
-        if execute_shell(command,self.options.verbose > 1) != 0:
-          sys.stderr.write("Unable to produce a '%s' for %s\n" % (basename,self.results_dir))
-          return 1
+        #if execute_shell(command,self.options.verbose > 1) != 0:
+        #  sys.stderr.write("Unable to produce a '%s' for %s\n" % (basename,self.results_dir))
+        #  return 1
 
       if self.options.verbose > 0:
         print
