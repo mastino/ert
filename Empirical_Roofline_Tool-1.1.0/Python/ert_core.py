@@ -506,10 +506,11 @@ class ert_core:
       sys.stderr.write("Unable to produce a '%s' gnuplot file for %s\n" % (name,run_dir))
       return 1
 
-    #command = "echo 'load \"%s/%s.gnu\"' | %s" % (run_dir,name,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
-    #if execute_shell(command,self.options.verbose > 1) != 0:
-    #  sys.stderr.write("Unable to produce a '%s' for %s\n" % (name,run_dir))
-    #  return 1
+    if self.options.gnuplot:
+      command = "echo 'load \"%s/%s.gnu\"' | %s" % (run_dir,name,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
+      if execute_shell(command,self.options.verbose > 1) != 0:
+       sys.stderr.write("Unable to produce a '%s' for %s\n" % (name,run_dir))
+       return 1
 
     return 0
 
@@ -742,96 +743,97 @@ class ert_core:
         for j in xrange(0,num_peak):
           x[i][j] = gflops_emp[j][0]/gbytes_emp[i][0]
 
+      
+      basename = "roofline"
+      loadname = "%s/%s.gnu" % (self.results_dir,basename)
+
+      xmin =   0.01
+      xmax = 100.00
+
+      ymin = 10 ** int(math.floor(math.log10(gbytes_emp[0][0] * xmin)))
+
+      title = "Empirical Roofline Graph (%s)" % self.results_dir
+
+      command  = "sed "
+      command += "-e 's#ERT_TITLE#%s#g' " % title
+      command += "-e 's#ERT_XRANGE_MIN#%le#g' " % xmin
+      command += "-e 's#ERT_XRANGE_MAX#%le#g' " % xmax
+      command += "-e 's#ERT_YRANGE_MIN#%le#g' " % ymin
+      command += "-e 's#ERT_YRANGE_MAX#\*#g' "
+      command += "-e 's#ERT_GRAPH#%s/%s#g' " % (self.results_dir,basename)
+
+      command += "< %s/Plot/%s.gnu.template > %s" % (self.exe_path,basename,loadname)
+      if execute_shell(command,False) != 0:
+        sys.stderr.write("Unable to produce a '%s' gnuplot file for %s\n" % (loadname,self.results_dir))
+        return 1
+
+      try:
+        plotfile = open(loadname,"a")
+      except IOError:
+        sys.stderr.write("Unable to open '%s'...\n" % loadname)
+        return 1
+
+      for h in xrange(0,num_peak):
+        xgflops = 2.0
+        label = '%.1f %s/sec (%s Maximum)' % (gflops_emp[h][0],gflops_emp[h][2],gflops_emp[h][1])
+        plotfile.write("set label '%s' at %.7le,%.7le left textcolor rgb '#000080'\n" % (label,xgflops,1.2*gflops_emp[h][0]))
+
+      xleft  = xmin
+      xright = x[0][0]
+
+      xmid = math.sqrt(xleft * xright)
+      ymid = gbytes_emp[0][0] * xmid
+
+      y0gbytes = ymid
+      x0gbytes = y0gbytes/gbytes_emp[0][0]
+
+      C = x0gbytes * y0gbytes
+
+      alpha = 1.065
+
+      label_over = True
+      for i in xrange(0,num_mem):
+        if i > 0:
+          if label_over and gbytes_emp[i-1][0] / gbytes_emp[i][0] < 1.5:
+            label_over = False
+
+          if not label_over and gbytes_emp[i-1][0] / gbytes_emp[i][0] > 3.0:
+            label_over = True
+
+        if label_over:
+          ygbytes = math.sqrt(C * gbytes_emp[i][0]) / math.pow(alpha,len(gbytes_emp[i][1]))
+          xgbytes = ygbytes/gbytes_emp[i][0]
+
+          ygbytes *= 1.1
+          xgbytes /= 1.1
+        else:
+          ygbytes = math.sqrt(C * gbytes_emp[i][0]) / math.pow(alpha,len(gbytes_emp[i][1]))
+          xgbytes = ygbytes/gbytes_emp[i][0]
+
+          ygbytes /= 1.1
+          xgbytes *= 1.1
+
+        label = "%s - %.1lf GB/s" % (gbytes_emp[i][1],gbytes_emp[i][0])
+
+        plotfile.write("set label '%s' at %.7le,%.7le left rotate by 45 textcolor rgb '#800000'\n" % (label,xgbytes,ygbytes))
+
+      plotfile.write("plot \\\n")
+
+      for i in xrange(0,num_mem):
+        plotfile.write("     (x <= %.7le ? %.7le * x : 1/0) lc 1 lw 2,\\\n" % (x[i][0],gbytes_emp[i][0]))
+      for j in xrange(0,num_peak):
+        if j == num_peak-1:
+          break
+        plotfile.write("     (x >= %.7le ? %.7le : 1/0) lc 3 lw 2,\\\n" % (x[0][j],gflops_emp[j][0]))
+      plotfile.write("     (x >= %.7le ? %.7le : 1/0) lc 3 lw 2\n" % (x[0][j],gflops_emp[j][0]))
+
+      plotfile.close()
+      
       if self.options.gnuplot:
-        basename = "roofline"
-        loadname = "%s/%s.gnu" % (self.results_dir,basename)
-
-        xmin =   0.01
-        xmax = 100.00
-
-        ymin = 10 ** int(math.floor(math.log10(gbytes_emp[0][0] * xmin)))
-
-        title = "Empirical Roofline Graph (%s)" % self.results_dir
-
-        command  = "sed "
-        command += "-e 's#ERT_TITLE#%s#g' " % title
-        command += "-e 's#ERT_XRANGE_MIN#%le#g' " % xmin
-        command += "-e 's#ERT_XRANGE_MAX#%le#g' " % xmax
-        command += "-e 's#ERT_YRANGE_MIN#%le#g' " % ymin
-        command += "-e 's#ERT_YRANGE_MAX#\*#g' "
-        command += "-e 's#ERT_GRAPH#%s/%s#g' " % (self.results_dir,basename)
-
-        command += "< %s/Plot/%s.gnu.template > %s" % (self.exe_path,basename,loadname)
-        if execute_shell(command,False) != 0:
-          sys.stderr.write("Unable to produce a '%s' gnuplot file for %s\n" % (loadname,self.results_dir))
-          return 1
-
-        try:
-          plotfile = open(loadname,"a")
-        except IOError:
-          sys.stderr.write("Unable to open '%s'...\n" % loadname)
-          return 1
-
-        for h in xrange(0,num_peak):
-          xgflops = 2.0
-          label = '%.1f %s/sec (%s Maximum)' % (gflops_emp[h][0],gflops_emp[h][2],gflops_emp[h][1])
-          plotfile.write("set label '%s' at %.7le,%.7le left textcolor rgb '#000080'\n" % (label,xgflops,1.2*gflops_emp[h][0]))
-
-        xleft  = xmin
-        xright = x[0][0]
-
-        xmid = math.sqrt(xleft * xright)
-        ymid = gbytes_emp[0][0] * xmid
-
-        y0gbytes = ymid
-        x0gbytes = y0gbytes/gbytes_emp[0][0]
-
-        C = x0gbytes * y0gbytes
-
-        alpha = 1.065
-
-        label_over = True
-        for i in xrange(0,num_mem):
-          if i > 0:
-            if label_over and gbytes_emp[i-1][0] / gbytes_emp[i][0] < 1.5:
-              label_over = False
-
-            if not label_over and gbytes_emp[i-1][0] / gbytes_emp[i][0] > 3.0:
-              label_over = True
-
-          if label_over:
-            ygbytes = math.sqrt(C * gbytes_emp[i][0]) / math.pow(alpha,len(gbytes_emp[i][1]))
-            xgbytes = ygbytes/gbytes_emp[i][0]
-
-            ygbytes *= 1.1
-            xgbytes /= 1.1
-          else:
-            ygbytes = math.sqrt(C * gbytes_emp[i][0]) / math.pow(alpha,len(gbytes_emp[i][1]))
-            xgbytes = ygbytes/gbytes_emp[i][0]
-
-            ygbytes /= 1.1
-            xgbytes *= 1.1
-
-          label = "%s - %.1lf GB/s" % (gbytes_emp[i][1],gbytes_emp[i][0])
-
-          plotfile.write("set label '%s' at %.7le,%.7le left rotate by 45 textcolor rgb '#800000'\n" % (label,xgbytes,ygbytes))
-
-        plotfile.write("plot \\\n")
-
-        for i in xrange(0,num_mem):
-          plotfile.write("     (x <= %.7le ? %.7le * x : 1/0) lc 1 lw 2,\\\n" % (x[i][0],gbytes_emp[i][0]))
-        for j in xrange(0,num_peak):
-          if j == num_peak-1:
-            break
-          plotfile.write("     (x >= %.7le ? %.7le : 1/0) lc 3 lw 2,\\\n" % (x[0][j],gflops_emp[j][0]))
-        plotfile.write("     (x >= %.7le ? %.7le : 1/0) lc 3 lw 2\n" % (x[0][j],gflops_emp[j][0]))
-
-        plotfile.close()
-
         command = "echo 'load \"%s\"' | %s" % (loadname,self.dict["CONFIG"]["ERT_GNUPLOT"][0])
-        #if execute_shell(command,self.options.verbose > 1) != 0:
-        #  sys.stderr.write("Unable to produce a '%s' for %s\n" % (basename,self.results_dir))
-        #  return 1
+        if execute_shell(command,self.options.verbose > 1) != 0:
+         sys.stderr.write("Unable to produce a '%s' for %s\n" % (basename,self.results_dir))
+         return 1
 
       if self.options.verbose > 0:
         print
